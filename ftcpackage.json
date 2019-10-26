@@ -1,0 +1,8 @@
+{
+  "name": "Starter project",
+  "description": "Define your dependencies and project information here",
+  "export": false,
+  "dependencies": {
+    "clwillingham/onbj-lib-demo": "master"
+  }
+}

@@ -1,3 +1,4 @@
+import groovy.json.JsonSlurper
 import io.github.httpbuilderng.http.HttpTask
 
 plugins {
@@ -15,6 +16,15 @@ repositories {
     jcenter()
     maven {
         url "https://plugins.gradle.org/m2/"
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/main/java'
+            srcDirs 'build/src/main/java'
+        }
     }
 }
 
@@ -140,4 +150,40 @@ task remoteBuild(type: HttpTask) {
 
 task everything(type: GradleBuild) {
     tasks = ['wipe', 'push', 'remoteBuild']
+}
+
+// Package Management
+task downloadDeps() {
+    def ftcpackage = new JsonSlurper().parseText(file('ftcpackage.json').text)
+    def repos = []
+    ftcpackage.dependencies.each{ repo, version ->
+        def repoPath = buildDir.path + "/downloads/${repo}.zip"
+        download {
+            src "https://github.com/${repo}/archive/${version}.zip"
+            dest repoPath
+        }
+        copy {
+            from zipTree(repoPath)
+            into (buildDir.path + "/packages/${repo}/")
+        }
+        delete repoPath
+    }
+    delete buildDir.path + '/downloads'
+}
+
+task configureDeps(dependsOn: downloadDeps) {
+    println sourceSets.main.java.srcDirs
+    fileTree(buildDir.path + "/packages/").matching { include "**/ftcpackage.json" }.each { file ->
+        def pkgFile = new JsonSlurper().parseText(file.text)
+        if(pkgFile.export){
+            def exports = pkgFile.export.replace('.', '/')
+            println "${(file.path-file.name)}src/main/java/${exports}"
+            copy {
+                from "${(file.path-file.name)}src/main/java/${exports}"
+                into buildDir.path + "/src/main/java/${exports}"
+            }
+        }
+//        sourceSets.main.java.srcDirs += (file.path-file.name)+'src/main/java'
+    }
+    println sourceSets.main.java.srcDirs
 }
